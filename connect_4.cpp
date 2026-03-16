@@ -9,16 +9,18 @@ Connect_4::Connect_4(QWidget *parent)
     setEnableBackground(true);
     setBackgroundImage("/home/hacker/Documents/C++/Connect4/Images/Melamine-wood-005.png");
 
-    setStyleSheet("background-color:#2A180B; border:5px solid #3B2314;");
-
-
     connect(this, &Connect_4::clicked, [this](const QPointF& pos) {
         // Handle click events here
         // You can determine which column was clicked based on the x-coordinate of pos
         int col = pos.x() / (width() / Cols);
         int row = pos.y() / (height() / Rows);
 
-        emit Clicked(board[row][col]);
+        if (isValidMove(row, col)) {
+            qDebug() << "Clicked on column:" << col << "row:" << row;
+            board[row][col].player = m_currentPlayer; // Mark the slot as occupied by the current player
+            emit Clicked(board[row][col].center);
+            
+        }
     });
 
     setMouseTracking(true);
@@ -32,6 +34,69 @@ Connect_4::Connect_4(QWidget *parent)
 Connect_4::~Connect_4()
 {
 
+}
+
+bool Connect_4::checkWin(int row, int col, Piece::Player player)
+{
+   QPair<short,short> directions[] = {
+        {0, 1},   // Horizontal
+        {1, 0},   // Vertical
+        {1, 1},   // Diagonal down-right
+        {1, -1}   // Diagonal down-left
+    };
+
+    for (const auto& dir : directions) {
+        int count = 1; // Count the current piece
+
+        count += countInDirection(row, col, player, dir); // Count in  direction
+
+        if (count >= 4) {
+            return true; // Win condition met
+        }
+    }
+
+    return false; // No win found
+}
+
+int Connect_4::countInDirection(int row, int col, Piece::Player player, const QPair<int, int>& dir)
+{
+    int count = 0;
+
+    // Check in the positive direction
+    for (int i = 1; i < 4; ++i) {
+        int r = row + dir.first * i;
+        int c = col + dir.second * i;
+        if (r >= 0 && r < Rows && c >= 0 && c < Cols && board[r][c].player == player) {
+            count++;
+        } else {
+            break;
+        }
+    }
+
+    // Check in the negative direction
+    for (int i = 1; i < 4; ++i) {
+        int r = row - dir.first * i;
+        int c = col - dir.second * i;
+        if (r >= 0 && r < Rows && c >= 0 && c < Cols && board[r][c].player == player) {
+            count++;
+        } else {
+            break;
+        }
+    }
+
+    return count;
+}
+
+bool Connect_4::isValidMove(int row, int col)
+{
+    if (row < 0 || row >= Rows || col < 0 || col >= Cols)
+        return false;
+
+    if (board[row][col].player != Piece::px)
+        return false;
+
+    return (row == Rows - 1) ||
+           (board[row + 1][col].player != Piece::px);
 }
 
 void Connect_4::paintEvent(QPaintEvent *event)
@@ -64,7 +129,7 @@ void Connect_4::paintEvent(QPaintEvent *event)
             double x = Margin + c * (holeW + Margin) + (holeW - m_currentDiameter) / 2.0;
             double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
 
-            board[r][c]=QPointF(x,y);
+            board[r][c].center = QPointF(x, y);
 
             boardPath.addEllipse(QRectF(x, y, m_currentDiameter, m_currentDiameter));
         }
@@ -99,4 +164,26 @@ QSize Connect_4::sizeHint() const
 QSize Connect_4::minimumSizeHint() const
 {
     return QSize(Cols * (m_currentDiameter + Margin) + Margin, Rows * (m_currentDiameter + Margin) + Margin);
+}
+
+void Connect_4::printBoardState() const
+{
+    qDebug() << "Current Board State:";
+    for (int r = 0; r < Rows; ++r) {
+        QString rowStr;
+        for (int c = 0; c < Cols; ++c) {
+            switch (board[r][c].player) {
+                case Piece::p1:
+                    rowStr += "-P1-";
+                    break;
+                case Piece::p2:
+                    rowStr += "-P2-";
+                    break;
+                case Piece::px:
+                    rowStr += "-Em-";
+                    break;
+            }
+        }
+        qDebug() << rowStr;
+    }
 }

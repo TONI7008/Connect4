@@ -23,6 +23,8 @@ set(PROJECT_SOURCES
         popoutframe.cpp popoutframe.h
         gameengine.h gameengine.cpp gameengine.ui
         togglebutton.cpp togglebutton.h
+        ai.cpp ai.h
+        aihelper.cpp aihelper.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

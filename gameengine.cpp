@@ -16,10 +16,10 @@ GameEngine::GameEngine(QWidget *parent)
     ui->bottomFrame->setCornerStyle(TFrame::CornerStyle::TopOnly);
     ui->topFrame->setBorderRadius(25);
     ui->topFrame->setCornerStyle(TFrame::CornerStyle::BottomOnly);
+    ui->aiButton->setCheckable(true);
 
     ui->circular1->setColor(QColor(250,29,71));
     ui->circular2->setColor(QColor(253,254,68));
-    //setAttribute(Qt::WA_TranslucentBackground);
 
     //ui->c4Widget->bord
     createPiece();
@@ -33,8 +33,10 @@ GameEngine::GameEngine(QWidget *parent)
         m_piece->move(x,m_piece->y());
     });
 
-    connect(ui->c4Widget,&Connect_4::Clicked,this,[this](QPointF pos_){
+    connect(ui->c4Widget,&Connect_4::Clicked,this,[this](QPointF pos_,bool fromAI){
         if(!m_piece) return;
+        if(fromAI && !ai_mode) return; // Ignore AI moves if AI mode is not enabled
+        if(m_currentPlayer==Piece::p1 && fromAI) return; // Ignore player moves if AI mode is enabled
 
         QString style;
         switch (m_currentPlayer) {
@@ -57,10 +59,23 @@ GameEngine::GameEngine(QWidget *parent)
         default:
             break;
         }
-
+        
+        ui->c4Widget->setCurrentPlayer(m_currentPlayer);
         QPointF pos=ui->c4Widget->mapTo(this,pos_);
         dropPiece(m_piece,pos,500);
         createPiece();
+
+        if(ai_mode){
+    
+            QTimer::singleShot(600,this,[this](){
+                if(m_ai){
+                    m_ai->makeMove();
+                }
+                    
+            });
+
+        }
+        
     });
 
     connect(ui->c4Widget,&Connect_4::diameterChanged,this,[this](short d){
@@ -70,6 +85,12 @@ GameEngine::GameEngine(QWidget *parent)
 
     connect(ui->quitButton,&QPushButton::clicked,this,&GameEngine::close);
     connect(ui->resetbutton,&QPushButton::clicked,this,&GameEngine::reset);
+    connect(ui->aiButton,&QPushButton::clicked,this,&GameEngine::enableAi);
+    connect(ui->difficultySlider,&QSlider::valueChanged,this,[this](int value){
+        if(m_ai){
+            m_ai->setDifficulty(value);
+        }
+    });
 
 
 }
@@ -82,6 +103,7 @@ void GameEngine::reset(){
 
         element->hide();
         element->deleteLater();
+        m_pieces.removeOne(element);
     }
     update();
 }
@@ -94,6 +116,7 @@ void GameEngine::verifyWinner()
 GameEngine::~GameEngine()
 {
     delete ui;
+    delete m_ai;
     if(m_piece){
         delete m_piece;
     }
@@ -149,8 +172,25 @@ void GameEngine::createPiece()
     m_piece->move(ui->c4Widget->x()+ui->c4Widget->holeDiameter(),ui->c4Widget->y()-ui->c4Widget->holeDiameter()-1);
 
     m_piece->show();
+
     m_piece->setPlayer(m_currentPlayer);
 
     m_pieces.append(m_piece);
 
+}
+void GameEngine::enableAi(bool enable)
+{
+    ai_mode = enable;
+    if (enable) {
+        if (!m_ai) {
+            m_ai = new AI(ui->c4Widget);
+            m_ai->setDifficulty(ui->difficultySlider->value());
+        }
+        ui->aiLabel->setText("AI");
+       
+    } else {
+        ui->aiLabel->setText("PLAYER 2");
+        delete m_ai;
+        m_ai = nullptr;
+    }
 }

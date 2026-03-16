@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QPropertyAnimation>
 #include "piece.h"
+#include"ai.h"
 
 namespace Ui {
 class GameEngine;
@@ -20,6 +21,9 @@ public:
 private:
     Ui::GameEngine *ui;
     Piece* m_piece=nullptr;
+    AI* m_ai=nullptr;
+
+    bool ai_mode=false;
 
     QPropertyAnimation *dropPiece(QWidget *piece, const QPointF &finalCenter, int duration);
     void createPiece();
@@ -27,6 +31,8 @@ private:
     QVector<Piece*> m_pieces;
     void reset();
     void verifyWinner();
+    
+    void enableAi(bool enable);
 
     Piece::Player m_currentPlayer=Piece::p1;
 };
