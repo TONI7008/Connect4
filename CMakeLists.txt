@@ -25,6 +25,7 @@ set(PROJECT_SOURCES
         togglebutton.cpp togglebutton.h
         ai.cpp ai.h
         aihelper.cpp aihelper.h
+        tstackedwidget.cpp tstackedwidget.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
