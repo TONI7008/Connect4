@@ -119,7 +119,7 @@ void Connect_4::paintEvent(QPaintEvent *event)
     //------------------------------------------------------
 
     QPainterPath boardPath;
-    boardPath.addRoundedRect(rect(),height()/33,width()/33);
+    boardPath.addRoundedRect(rect(),height()/15,height()/15);
 
     for (int r = 0; r < Rows; ++r) {
         for (int c = 0; c < Cols; ++c) {
@@ -128,8 +128,15 @@ void Connect_4::paintEvent(QPaintEvent *event)
             double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
 
             board[r][c].center = QPointF(x, y);
-            
             boardPath.addEllipse(QRectF(x, y, m_currentDiameter, m_currentDiameter));
+            
+            if(board[r][c].player != Piece::px){
+               if(board[r][c].piece){
+                    QRectF pieceRect(board[r][c].center, QSizeF(m_currentDiameter, m_currentDiameter));
+                    board[r][c].piece->setGeometry(pieceRect.toRect());
+                }
+            }
+
         }
     }
 
@@ -217,12 +224,12 @@ void Connect_4::updatePositions(){
            
            double x = Margin + c * (holeW + Margin) + (holeW - m_currentDiameter) / 2.0;
            double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
-           qDebug() << "x :" << x << " y :" << y;
-
-            if(board[r][c].player != Piece::px){
-                if(board[r][c].piece){
-                    //QRectF pieceRect(board[r][c].center, QSizeF(m_currentDiameter, m_currentDiameter));
-                    board[r][c].piece->move(x,y);
+           
+           if(board[r][c].player != Piece::px){
+               if(board[r][c].piece){
+                    qDebug() << "x :" << x << " y :" << y;
+                    QRectF pieceRect(board[r][c].center, QSizeF(m_currentDiameter, m_currentDiameter));
+                    board[r][c].piece->setGeometry(pieceRect.toRect());
                 }
             }
         }

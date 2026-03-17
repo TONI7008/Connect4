@@ -29,6 +29,7 @@ GameEngine::GameEngine(QWidget *parent)
 
     ui->stackedWidget->setCurrentWidget(ui->home);
     ui->stackedWidget->setAnimationDuration(500);
+    ui->stackedWidget->setAnimationType(TStackedWidget::VerticalSlide);
 
     ui->winnerFrame->setBorderRadius(50);
     ui->winnerFrame->setEnableBackground(true);
@@ -81,9 +82,7 @@ GameEngine::GameEngine(QWidget *parent)
         }
         
         ui->c4Widget->setCurrentPlayer(m_currentPlayer);
-        //QPointF pos=ui->c4Widget->mapTo(this,pos_);
-        QPointF pos = pos_;
-        dropPiece(m_piece,pos,500);
+        dropPiece(m_piece,pos_,500);
         createPiece();
 
         if(ai_mode && !fromAI){
@@ -103,6 +102,10 @@ GameEngine::GameEngine(QWidget *parent)
         m_piece->move(m_piece->x(),ui->c4Widget->y()-ui->c4Widget->holeDiameter()-1);
     });
 
+    connect(ui->restartButton,&QPushButton::clicked,this,[this](){
+        ui->stackedWidget->setCurrentWidget(ui->game);
+        reset();
+    });
     connect(ui->quitButton,&QPushButton::clicked,this,&GameEngine::close);
     connect(ui->resetbutton,&QPushButton::clicked,this,&GameEngine::reset);
     connect(ui->aiButton,&QPushButton::clicked,this,&GameEngine::enableAi);
@@ -120,9 +123,14 @@ void GameEngine::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
     short w = event->size().width();
     short h = event->size().height();
-    ui->c4Widget->setMinimumSize(w*500/714,h*450/596);
+    short nw=w*500/714;
+    short nh=h*450/596;
+    short x=(w-nw)/2;
+    short y=(h-nh)/2;
+    //ui->c4Widget->setGeometry(x,y,nw,nh);
+    ui->c4Widget->setMinimumSize(w*500/714,h*430/596);
 
-    ui->c4Widget->updatePositions();
+    //ui->c4Widget->updatePositions();
 }
 void GameEngine::reset(){
 
@@ -134,6 +142,14 @@ void GameEngine::reset(){
         m_pieces.removeOne(element);
     }
     m_currentPlayer=Piece::p1;
+    if(m_piece){
+        m_piece->setPlayer(m_currentPlayer);
+        m_piece->move(ui->c4Widget->x()+ui->c4Widget->holeDiameter(),ui->c4Widget->y()-ui->c4Widget->holeDiameter()-1);
+    }
+    if(m_ai){
+        delete m_ai;
+        m_ai=nullptr;
+    }
     ui->cplayerLabel->setText("RED'S TURN");
     QString style = ui->cplayerLabel->styleSheet();
     style.replace("rgb(253,254,68)","rgb(250,29,71)");
@@ -153,7 +169,7 @@ GameEngine::~GameEngine()
     }
 }
 
-QPropertyAnimation* GameEngine::dropPiece(QWidget* piece,
+QPropertyAnimation* GameEngine::dropPiece(Piece* piece,
                               const QPointF& finalCenter,
                               int duration)
 {
@@ -186,8 +202,10 @@ QPropertyAnimation* GameEngine::dropPiece(QWidget* piece,
     this->raise();
     piece->lower();
 
-    connect(anim, &QPropertyAnimation::finished, this, [this, piece]() {
+    connect(anim, &QPropertyAnimation::finished, this, [this,piece,finalCenter]() {
         piece->raise();
+        qDebug() << "Animation finished, linking piece to slot at" << finalCenter;
+        ui->c4Widget->linkPieceToSlot(piece,finalCenter);
     });
 
     anim->start(QAbstractAnimation::DeleteWhenStopped);

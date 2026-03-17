@@ -46,7 +46,7 @@ private:
 
     const static short Rows = 7;
     const static short Cols = 6;
-    const  short Margin = 8;
+    const  short Margin = 6;
     const  double minHoleDiameter = 40.0;
 
     double m_currentDiameter = minHoleDiameter;

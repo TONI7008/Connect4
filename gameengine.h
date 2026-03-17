@@ -26,7 +26,7 @@ private:
 
     bool ai_mode=false;
 
-    QPropertyAnimation *dropPiece(QWidget *piece, const QPointF &finalCenter, int duration);
+    QPropertyAnimation *dropPiece(Piece *piece, const QPointF &finalCenter, int duration);
     void createPiece();
 
     QVector<Piece*> m_pieces;
