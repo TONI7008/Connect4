@@ -113,7 +113,6 @@ void Connect_4::paintEvent(QPaintEvent *event)
     m_currentDiameter = std::max(minHoleDiameter, std::min(holeW, holeH));
     emit diameterChanged((short)m_currentDiameter);
 
-
     //------------------------------------------------------
     // Build board shape with punched holes
     //------------------------------------------------------

@@ -12,12 +12,16 @@ public:
     ~CircularWidget();
 
     void setColor(const QColor &newColor);
+    void setHighlighted(bool highlighted) { m_higlighted = highlighted; update(); } 
+
+    
 
 protected:
     void paintEvent(QPaintEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
+    
     QColor m_color=Qt::green;
 
+    bool m_higlighted=false;
 };
 
 #endif // CIRCULARWIDGET_H

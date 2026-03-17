@@ -36,6 +36,13 @@ GameEngine::GameEngine(QWidget *parent)
     ui->winnerFrame->setBorder(true);
     ui->winnerFrame->setBorderSize(5);
 
+    m_floater = new WidgetFloater(ui->logoFrame, this);
+    m_floater->setFloatAmount(15);
+    m_floater->setDuration(3000);
+    //m_floater->startFloating();
+    
+    //m_floater->startFloating();
+
     //ui->c4Widget->bord
     createPiece();
 
@@ -121,14 +128,20 @@ GameEngine::GameEngine(QWidget *parent)
 void GameEngine::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+
     short w = event->size().width();
     short h = event->size().height();
-    short nw=w*500/714;
+    short nw=w*500/700;
     short nh=h*450/596;
     short x=(w-nw)/2;
     short y=(h-nh)/2;
     //ui->c4Widget->setGeometry(x,y,nw,nh);
-    ui->c4Widget->setMinimumSize(w*500/714,h*430/596);
+    ui->c4Widget->setMinimumSize(w*500/700,h*430/596);
+
+    qDebug() << "new logoFrame pos: " << ui->logoFrame->pos();
+    //m_floater->setOriginalPosition(ui->logoFrame->pos());
+    //m_floater->stopFloating();
+    //m_floater->startFloating();
 
     //ui->c4Widget->updatePositions();
 }
@@ -166,6 +179,9 @@ GameEngine::~GameEngine()
     delete m_ai;
     if(m_piece){
         delete m_piece;
+    }
+    if (m_floater) {
+        delete m_floater;
     }
 }
 
@@ -248,16 +264,22 @@ void GameEngine::enableAi(bool enable)
 void GameEngine::verifyWinner()
 {
     Piece::Player winner = ui->c4Widget->verifyWinner();
+    short winnerCount=0;
+        
     if (winner != Piece::px) {
         switch (winner)
         {
         case Piece::p1:
             ui->winnerFrame->setBorderColor(QColor(250,29,71));
             ui->winnerLabel->setText("RED'S WINS!");
+            winnerCount = ui->player1Score->text().toInt();
+            ui->player1Score->setText(QString::number(winnerCount+1));
             break;
         case Piece::p2:
             ui->winnerFrame->setBorderColor(QColor(253,254,68));
             ui->winnerLabel->setText("YELLOW'S WINS!");
+            winnerCount = ui->player2Score->text().toInt();
+            ui->player2Score->setText(QString::number(winnerCount+1));
             break;
         
         default:

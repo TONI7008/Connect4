@@ -26,6 +26,7 @@ set(PROJECT_SOURCES
         ai.cpp ai.h
         aihelper.cpp aihelper.h
         tstackedwidget.cpp tstackedwidget.h
+        widgetfloater.cpp widgetfloater.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)

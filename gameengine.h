@@ -5,6 +5,7 @@
 #include <QPropertyAnimation>
 #include "piece.h"
 #include"ai.h"
+#include "widgetfloater.h"
 
 namespace Ui {
 class GameEngine;
@@ -23,6 +24,7 @@ private:
     Ui::GameEngine *ui;
     Piece* m_piece=nullptr;
     AI* m_ai=nullptr;
+    WidgetFloater* m_floater=nullptr;
 
     bool ai_mode=false;
 
