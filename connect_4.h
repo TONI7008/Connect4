@@ -19,10 +19,15 @@ public:
     {
         QPointF center =QPointF(0.0,0.0);
         Piece::Player player=Piece::px;
+        Piece* piece=nullptr;
 
     };
 
     void setCurrentPlayer(Piece::Player player) { m_currentPlayer = player; }
+    Piece::Player verifyWinner();
+    void linkPieceToSlot(Piece* _piece,QPointF pos);
+    void updatePositions();
+    void reset();
 
 
 signals:

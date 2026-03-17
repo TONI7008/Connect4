@@ -54,7 +54,7 @@ signals:
     void resizing();
 
 private:
-    QPixmap m_backgroundImage = QPixmap("/home/hacker/Documents/C++/Connect4/Images/ima.png");
+    QPixmap m_backgroundImage = QPixmap("/home/hacker/Documents/C++/Connect-4/Images/ima.png");
 
     short int roundness = 15;
     bool enable_background = true;

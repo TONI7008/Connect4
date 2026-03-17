@@ -16,7 +16,7 @@ Connect_4::Connect_4(QWidget *parent)
         int row = pos.y() / (height() / Rows);
 
         if (isValidMove(row, col)) {
-            qDebug() << "Clicked on column:" << col << "row:" << row;
+            //qDebug() << "Clicked on column:" << col << "row:" << row;
             board[row][col].player = m_currentPlayer; // Mark the slot as occupied by the current player
             emit Clicked(board[row][col].center);
             
@@ -26,14 +26,12 @@ Connect_4::Connect_4(QWidget *parent)
     setMouseTracking(true);
     setAttribute(Qt::WA_Hover);
     setAttribute(Qt::WA_TranslucentBackground);
-    //setAttribute(Qt::WA_NoSystemBackground);
-    //setAttribute();
 
 }
 
 Connect_4::~Connect_4()
 {
-
+    
 }
 
 bool Connect_4::checkWin(int row, int col, Piece::Player player)
@@ -121,7 +119,7 @@ void Connect_4::paintEvent(QPaintEvent *event)
     //------------------------------------------------------
 
     QPainterPath boardPath;
-    boardPath.addRoundedRect(rect(),15,15);
+    boardPath.addRoundedRect(rect(),height()/33,width()/33);
 
     for (int r = 0; r < Rows; ++r) {
         for (int c = 0; c < Cols; ++c) {
@@ -130,7 +128,7 @@ void Connect_4::paintEvent(QPaintEvent *event)
             double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
 
             board[r][c].center = QPointF(x, y);
-
+            
             boardPath.addEllipse(QRectF(x, y, m_currentDiameter, m_currentDiameter));
         }
     }
@@ -185,5 +183,59 @@ void Connect_4::printBoardState() const
             }
         }
         qDebug() << rowStr;
+    }
+}
+Piece::Player Connect_4::verifyWinner()
+{
+    for (int r = 0; r < Rows; ++r) {
+        for (int c = 0; c < Cols; ++c) {
+            if (board[r][c].player != Piece::px) {
+                if (checkWin(r, c, board[r][c].player)) {
+                    return board[r][c].player; // Return the winner
+                }
+            }
+        }
+    }
+    return Piece::px; // No winner
+}
+void Connect_4::linkPieceToSlot(Piece* _piece,QPointF pos){
+    if(!_piece) return;
+    int col = pos.x() / (width() / Cols);
+    int row = pos.y() / (height() / Rows);
+
+    board[row][col].piece = _piece;
+}
+
+void Connect_4::updatePositions(){
+   qDebug() << "w :" << width() << " h :" << height();
+   
+   double holeW = (double)(width() - (Margin * (Cols + 1))) / Cols;
+   double holeH = (double)(height() - (Margin * (Rows + 1))) / Rows;
+   
+   for (int r = 0; r < Rows; ++r) {
+       for (int c = 0; c < Cols; ++c) {
+           
+           double x = Margin + c * (holeW + Margin) + (holeW - m_currentDiameter) / 2.0;
+           double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
+           qDebug() << "x :" << x << " y :" << y;
+
+            if(board[r][c].player != Piece::px){
+                if(board[r][c].piece){
+                    //QRectF pieceRect(board[r][c].center, QSizeF(m_currentDiameter, m_currentDiameter));
+                    board[r][c].piece->move(x,y);
+                }
+            }
+        }
+    }
+}
+
+void Connect_4::reset(){
+    for (int r = 0; r < Rows; ++r) {
+        for (int c = 0; c < Cols; ++c) {
+            board[r][c].player = Piece::px;
+            if(board[r][c].piece){
+                board[r][c].piece = nullptr;
+            }
+        }
     }
 }

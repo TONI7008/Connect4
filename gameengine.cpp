@@ -21,12 +21,31 @@ GameEngine::GameEngine(QWidget *parent)
     ui->circular1->setColor(QColor(250,29,71));
     ui->circular2->setColor(QColor(253,254,68));
 
+    ui->circular2_4->setColor(QColor(253,254,68));
+    ui->circular2_6->setColor(QColor(253,254,68));
+
+    ui->circular2_3->setColor(QColor(250,29,71));
+    ui->circular2_5->setColor(QColor(250,29,71));
+
+    ui->stackedWidget->setCurrentWidget(ui->home);
+    ui->stackedWidget->setAnimationDuration(500);
+
+    ui->winnerFrame->setBorderRadius(50);
+    ui->winnerFrame->setEnableBackground(true);
+    ui->winnerFrame->setBorder(true);
+    ui->winnerFrame->setBorderSize(5);
+
     //ui->c4Widget->bord
     createPiece();
 
+    connect(ui->startgameButton,&QPushButton::clicked,this,[this](){
+        ui->stackedWidget->setCurrentWidget(ui->game);
+    });
+
     connect(ui->c4Widget,&Connect_4::mouseMoved,this,[this](QPoint posn){
         if(!m_piece) return;
-        QPoint pos=ui->c4Widget->mapTo(this,posn);
+        //QPoint pos=ui->c4Widget->mapTo(this,posn);
+        QPoint pos = posn;
         short w=m_piece->width();
 
         short x=pos.x()-w/2;
@@ -36,7 +55,8 @@ GameEngine::GameEngine(QWidget *parent)
     connect(ui->c4Widget,&Connect_4::Clicked,this,[this](QPointF pos_,bool fromAI){
         if(!m_piece) return;
         if(fromAI && !ai_mode) return; // Ignore AI moves if AI mode is not enabled
-        if(m_currentPlayer==Piece::p1 && fromAI) return; // Ignore player moves if AI mode is enabled
+        // Prevent player from making a move while AI is thinking
+        if(!fromAI && ai_mode && m_currentPlayer==Piece::p2) return;
 
         QString style;
         switch (m_currentPlayer) {
@@ -61,20 +81,20 @@ GameEngine::GameEngine(QWidget *parent)
         }
         
         ui->c4Widget->setCurrentPlayer(m_currentPlayer);
-        QPointF pos=ui->c4Widget->mapTo(this,pos_);
+        //QPointF pos=ui->c4Widget->mapTo(this,pos_);
+        QPointF pos = pos_;
         dropPiece(m_piece,pos,500);
         createPiece();
 
-        if(ai_mode){
-    
-            QTimer::singleShot(600,this,[this](){
+        if(ai_mode && !fromAI){
+            QTimer::singleShot(200,this,[this](){
                 if(m_ai){
                     m_ai->makeMove();
                 }
-                    
             });
-
         }
+
+        verifyWinner();
         
     });
 
@@ -92,25 +112,36 @@ GameEngine::GameEngine(QWidget *parent)
         }
     });
 
-
 }
 
+
+void GameEngine::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    short w = event->size().width();
+    short h = event->size().height();
+    ui->c4Widget->setMinimumSize(w*500/714,h*450/596);
+
+    ui->c4Widget->updatePositions();
+}
 void GameEngine::reset(){
 
     for (auto* element : std::as_const(m_pieces)){
         if(element==m_piece) continue;
 
-
         element->hide();
         element->deleteLater();
         m_pieces.removeOne(element);
     }
+    m_currentPlayer=Piece::p1;
+    ui->cplayerLabel->setText("RED'S TURN");
+    QString style = ui->cplayerLabel->styleSheet();
+    style.replace("rgb(253,254,68)","rgb(250,29,71)");
+    style.replace("black","white");
+    ui->cplayerLabel->setStyleSheet(style);
+    ui->c4Widget->reset();
+
     update();
-}
-
-void GameEngine::verifyWinner()
-{
-
 }
 
 GameEngine::~GameEngine()
@@ -129,15 +160,14 @@ QPropertyAnimation* GameEngine::dropPiece(QWidget* piece,
     if (!piece)
         return nullptr;
 
+    piece->show();
     QSize s = piece->size();
 
     QRect startRect = piece->geometry();
 
     QRect endRect(
-        finalCenter.x()+1 ,
-        finalCenter.y(),
-        s.width(),
-        s.height()
+        finalCenter.toPoint(),
+        QSize(s.width(), s.height())
     );
 
     QPropertyAnimation* anim =
@@ -156,6 +186,10 @@ QPropertyAnimation* GameEngine::dropPiece(QWidget* piece,
     this->raise();
     piece->lower();
 
+    connect(anim, &QPropertyAnimation::finished, this, [this, piece]() {
+        piece->raise();
+    });
+
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 
     return anim;
@@ -164,14 +198,14 @@ QPropertyAnimation* GameEngine::dropPiece(QWidget* piece,
 void GameEngine::createPiece()
 {
     m_piece=nullptr;
-    m_piece = new Piece(this);
+    m_piece = new Piece(ui->c4Widget);
     m_piece->raise();
     m_piece->setPlayer(Piece::p1);
     short margin=5;
     m_piece->resize(ui->c4Widget->holeDiameter(),ui->c4Widget->holeDiameter()+4);
     m_piece->move(ui->c4Widget->x()+ui->c4Widget->holeDiameter(),ui->c4Widget->y()-ui->c4Widget->holeDiameter()-1);
 
-    m_piece->show();
+    m_piece->hide();
 
     m_piece->setPlayer(m_currentPlayer);
 
@@ -192,5 +226,27 @@ void GameEngine::enableAi(bool enable)
         ui->aiLabel->setText("PLAYER 2");
         delete m_ai;
         m_ai = nullptr;
+    }
+}
+void GameEngine::verifyWinner()
+{
+    Piece::Player winner = ui->c4Widget->verifyWinner();
+    if (winner != Piece::px) {
+        switch (winner)
+        {
+        case Piece::p1:
+            ui->winnerFrame->setBorderColor(QColor(250,29,71));
+            ui->winnerLabel->setText("RED'S WINS!");
+            break;
+        case Piece::p2:
+            ui->winnerFrame->setBorderColor(QColor(253,254,68));
+            ui->winnerLabel->setText("YELLOW'S WINS!");
+            break;
+        
+        default:
+            break;
+        }
+
+        ui->stackedWidget->setCurrentWidget(ui->winnerPage);
     }
 }

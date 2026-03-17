@@ -30,6 +30,7 @@ private:
     int countInDirection(int row, int col, Piece::Player player, const std::pair<int, int>& direction) const;
     int minimax(int depth, bool isMaximizing, Piece::Player currentPlayer);
     int evaluateBoard(Piece::Player aiPlayer) const;
+    void printBoardState() const;
     
     // Constants
     static constexpr int INF = 1000000;

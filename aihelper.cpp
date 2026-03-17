@@ -179,9 +179,11 @@ void AIHelper::findBestMove(int difficulty, int &bestRow, int &bestCol)
     int bestEval = -INF;
     Piece::Player aiPlayer = Piece::p2; // AI always plays as p2
     
+    short count = 0;
     for (int row = 0; row < ROWS; ++row) {
         for (int col = 0; col < COLS; ++col) {
             if (isValidMove(row, col)) {
+                count++;
                 // Simulate the move
                 Piece::Player original = m_board[row][col];
                 m_board[row][col] = aiPlayer;
@@ -199,10 +201,32 @@ void AIHelper::findBestMove(int difficulty, int &bestRow, int &bestCol)
             }
         }
     }
-    
+
     if (bestRow != -1 && bestCol != -1) {
         emit moveFound(bestRow, bestCol);
     } else {
         emit error("No valid moves found");
+    }
+}
+
+void AIHelper::printBoardState() const
+{
+    qDebug() << "Current Board State:";
+    for (int r = 0; r < ROWS; ++r) {
+        QString rowStr;
+        for (int c = 0; c < COLS; ++c) {
+            switch (m_board[r][c]) {
+                case Piece::p1:
+                    rowStr += "-P1-";
+                    break;
+                case Piece::p2:
+                    rowStr += "-P2-";
+                    break;
+                case Piece::px:
+                    rowStr += "-Em-";
+                    break;
+            }
+        }
+        qDebug() << rowStr;
     }
 }
