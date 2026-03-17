@@ -204,7 +204,6 @@ QPropertyAnimation* GameEngine::dropPiece(Piece* piece,
 
     connect(anim, &QPropertyAnimation::finished, this, [this,piece,finalCenter]() {
         piece->raise();
-        qDebug() << "Animation finished, linking piece to slot at" << finalCenter;
         ui->c4Widget->linkPieceToSlot(piece,finalCenter);
     });
 

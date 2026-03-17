@@ -1,6 +1,7 @@
 #include "circularwidget.h"
 
 #include <QPaintEvent>
+#include <QPainterPath>
 #include <QPainter>
 #include <QResizeEvent>
 
@@ -16,31 +17,23 @@ CircularWidget::~CircularWidget(){
 void CircularWidget::paintEvent(QPaintEvent *event)
 {
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing, true); // For smooth edges
+    painter.setRenderHint(QPainter::Antialiasing); // For smooth edges
+
+    QPainterPath path;
+  
+    double radius = std::min(width(), height()) / 2;
+
+    QPointF center =rect().center();
+    path.addEllipse(center, radius, radius);
 
 
-    // Set pen (outline) and brush (fill) properties
-    painter.setPen(Qt::NoPen);
-
-    QPointF center(width() / 2.0, height() / 2.0);
-    double diameter = std::min(width(), height());
-
-    QRadialGradient g(center, diameter / 2.0);
+    QRadialGradient g(center, radius);
     g.setColorAt(0.0, m_color.lighter(130));
     g.setColorAt(0.8, m_color);
     g.setColorAt(1.0, m_color.darker(150));
 
-    painter.setBrush(g);
-
-    // Calculate the diameter for a perfect circle within the widget's bounds
-    // Calculate the top-left corner of the square are  a where the circle will be drawn
-
-    double x = (width() - diameter) / 2.0;
-    double y = (height() - diameter) / 2.0;
-
-    // Draw the ellipse (circle)
-    painter.drawEllipse(x, y, diameter, diameter);
-    QWidget::paintEvent(event);
+    painter.fillPath(path, g);
+    //QWidget::paintEvent(event);
 
 }
 
