@@ -18,8 +18,10 @@ class GameEngine : public QWidget
 public:
     explicit GameEngine(QWidget *parent = nullptr);
     ~GameEngine();
+    
 protected:
     void resizeEvent(QResizeEvent* event) override;
+
 private:
     Ui::GameEngine *ui;
     Piece* m_piece=nullptr;

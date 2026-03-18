@@ -26,8 +26,13 @@ public:
     void setCurrentPlayer(Piece::Player player) { m_currentPlayer = player; }
     Piece::Player verifyWinner();
     void linkPieceToSlot(Piece* _piece,QPointF pos);
-    void updatePositions();
     void reset();
+    
+    struct WinResult
+    {
+        QPair<short,short> direction;
+        short count=0;
+    };
 
 
 signals:
@@ -55,7 +60,7 @@ private:
     bool isValidMove(int row, int col);
 
     bool checkWin(int row, int col, Piece::Player player);
-    int countInDirection(int row, int col, Piece::Player player, const QPair<int, int>& dir);
+    WinResult countInDirection(int row, int col, Piece::Player player, const QPair<int, int>& dir);
 
     Piece::Player m_currentPlayer = Piece::p1;
 

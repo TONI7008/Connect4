@@ -36,14 +36,26 @@ GameEngine::GameEngine(QWidget *parent)
     ui->winnerFrame->setBorder(true);
     ui->winnerFrame->setBorderSize(5);
 
-    m_floater = new WidgetFloater(ui->logoFrame, this);
-    m_floater->setFloatAmount(15);
-    m_floater->setDuration(3000);
-    //m_floater->startFloating();
+    m_floater = new WidgetFloater(ui->holderFrame, this);
+    m_floater->setFloatAmount(25);
+    m_floater->setDuration(3100);
+    m_floater->setAutoReposition(true);
+    m_floater->setRepositionDelay(20);
     
-    //m_floater->startFloating();
 
-    //ui->c4Widget->bord
+    ui->logoFrame->setBackgroundColor(QColor(255,255,255,200));
+    ui->logoFrame->setBorderRadius(20);
+
+    ui->holderFrame->setEnableBackground(false);
+    ui->holderFrame->setBorder(false);
+
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(ui->logoFrame);
+    shadow->setBlurRadius(15);
+    shadow->setOffset(5, 5);
+    shadow->setColor(QColor(250,250,250,150));
+    ui->logoFrame->setGraphicsEffect(shadow);
+    
+   
     createPiece();
 
     connect(ui->startgameButton,&QPushButton::clicked,this,[this](){
@@ -93,7 +105,7 @@ GameEngine::GameEngine(QWidget *parent)
         createPiece();
 
         if(ai_mode && !fromAI){
-            QTimer::singleShot(200,this,[this](){
+            QTimer::singleShot(100,this,[this](){
                 if(m_ai){
                     m_ai->makeMove();
                 }
@@ -122,6 +134,9 @@ GameEngine::GameEngine(QWidget *parent)
         }
     });
 
+    updateGeometry();
+    m_floater->startFloating();
+
 }
 
 
@@ -131,20 +146,11 @@ void GameEngine::resizeEvent(QResizeEvent* event)
 
     short w = event->size().width();
     short h = event->size().height();
-    short nw=w*500/700;
-    short nh=h*450/596;
-    short x=(w-nw)/2;
-    short y=(h-nh)/2;
-    //ui->c4Widget->setGeometry(x,y,nw,nh);
+    
     ui->c4Widget->setMinimumSize(w*500/700,h*430/596);
 
-    qDebug() << "new logoFrame pos: " << ui->logoFrame->pos();
-    //m_floater->setOriginalPosition(ui->logoFrame->pos());
-    //m_floater->stopFloating();
-    //m_floater->startFloating();
-
-    //ui->c4Widget->updatePositions();
 }
+
 void GameEngine::reset(){
 
     for (auto* element : std::as_const(m_pieces)){
@@ -210,7 +216,7 @@ QPropertyAnimation* GameEngine::dropPiece(Piece* piece,
     anim->setEndValue(endRect);
 
     QEasingCurve curve(QEasingCurve::OutBounce);
-    curve.setAmplitude(1.0);
+    curve.setAmplitude(1.5);
     curve.setPeriod(0.35);
 
     anim->setEasingCurve(curve);
@@ -245,6 +251,7 @@ void GameEngine::createPiece()
     m_pieces.append(m_piece);
 
 }
+
 void GameEngine::enableAi(bool enable)
 {
     ai_mode = enable;
@@ -261,6 +268,7 @@ void GameEngine::enableAi(bool enable)
         m_ai = nullptr;
     }
 }
+
 void GameEngine::verifyWinner()
 {
     Piece::Player winner = ui->c4Widget->verifyWinner();
@@ -286,6 +294,8 @@ void GameEngine::verifyWinner()
             break;
         }
 
-        ui->stackedWidget->setCurrentWidget(ui->winnerPage);
+        QTimer::singleShot(1000, this, [this]() {
+            ui->stackedWidget->setCurrentWidget(ui->winnerPage);
+        });
     }
 }

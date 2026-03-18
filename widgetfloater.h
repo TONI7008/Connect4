@@ -5,8 +5,8 @@
 #include <QWidget>
 #include <QPropertyAnimation>
 #include <QEasingCurve>
-#include <QParallelAnimationGroup>
 #include <QTimer>
+#include <QPointer>
 
 class WidgetFloater : public QObject
 {
@@ -21,10 +21,6 @@ public:
     void startFloating();
     void stopFloating();
     void setFloatingEnabled(bool enabled);
-    void setOriginalPosition(const QPoint& pos){
-        m_originalPosition = pos;
-        setFloatOffset(0); // Reset offset to ensure correct positioning
-    }
     
     // Customization methods
     void setFloatAmount(int pixels);
@@ -32,29 +28,43 @@ public:
     void setEasingCurve(const QEasingCurve& curve);
     void setRandomDelay(bool enabled);
     void setPauseBetweenCycles(int milliseconds);
+    void setAutoReposition(bool enabled);
+    void setRepositionDelay(int milliseconds);
     
     // Status
     bool isFloating() const;
     int floatAmount() const { return m_floatAmount; }
     int duration() const { return m_duration; }
+    QPoint originalPosition() const { return m_originalPosition; }
     
+    // Manual reposition (if needed)
+    void updateOriginalPosition();
+    void setOriginalPosition(const QPoint& pos);
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 signals:
     void floatingStarted();
     void floatingStopped();
     void cycleCompleted();
+    void positionUpdated();
 
 private slots:
     void onAnimationFinished();
     void startNextCycle();
+    void onParentResized();
+    void delayedReposition();
 
 private:
     // Target widget
-    QWidget *m_target=nullptr;
+    QPointer<QWidget> m_target;
+    QPointer<QWidget> m_parent;
     
     // Animation properties
-    QPropertyAnimation *m_floatUpAnimation=nullptr;
-    QPropertyAnimation *m_floatDownAnimation=nullptr;
-    QSequentialAnimationGroup *m_floatSequence=nullptr;
+    QPropertyAnimation *m_floatUpAnimation;
+    QPropertyAnimation *m_floatDownAnimation;
+    QSequentialAnimationGroup *m_floatSequence;
     QEasingCurve m_easingCurve;
     
     // Configuration
@@ -63,17 +73,28 @@ private:
     bool m_randomDelay;
     int m_pauseDuration;
     QPoint m_originalPosition;
+    QPoint m_lastKnownPosition;
     float m_floatOffset;
+    
+    // Auto-reposition
+    bool m_autoReposition;
+    int m_repositionDelay;
+    QTimer *m_repositionTimer;
+    bool m_pendingReposition;
     
     // State
     bool m_isFloating;
     int m_currentCycle;
+    bool m_parentEventFilterInstalled;
     
     // Helper methods
     void setupAnimations();
     void saveOriginalPosition();
+    void installParentEventFilter();
     float floatOffset() const { return m_floatOffset; }
     void setFloatOffset(float offset);
+    void updateWidgetPosition();
+    bool isValid() const { return !m_target.isNull(); }
 };
 
 #endif // WIDGETFLOATER_H

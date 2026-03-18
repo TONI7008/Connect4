@@ -43,12 +43,26 @@ bool Connect_4::checkWin(int row, int col, Piece::Player player)
         {1, -1}   // Diagonal down-left
     };
 
+    WinResult result;
     for (const auto& dir : directions) {
         int count = 1; // Count the current piece
 
-        count += countInDirection(row, col, player, dir); // Count in  direction
+        result = countInDirection(row, col, player, dir);
+        count += result.count; // Count in  direction
 
         if (count >= 4) {
+            for(int i=0;i<=result.count;i++){
+                int r = row + dir.first * i;
+                int c = col + dir.second * i;
+                
+                if(r==row && c==col) continue; // Skip the original piece
+
+                if (r >= 0 && r < Rows && c >= 0 && c < Cols && board[r][c].player == player) {
+                    board[r][c].piece->setHighlighted(true);
+                } else {
+                    break;
+                }
+            }
             return true; // Win condition met
         }
     }
@@ -56,34 +70,26 @@ bool Connect_4::checkWin(int row, int col, Piece::Player player)
     return false; // No win found
 }
 
-int Connect_4::countInDirection(int row, int col, Piece::Player player, const QPair<int, int>& dir)
+Connect_4::WinResult Connect_4::countInDirection(int row, int col, Piece::Player player, const QPair<int, int>& dir)
 {
-    int count = 0;
+    WinResult result;
+    result.count = 0;
 
     // Check in the positive direction
     for (int i = 1; i < 4; ++i) {
         int r = row + dir.first * i;
         int c = col + dir.second * i;
         if (r >= 0 && r < Rows && c >= 0 && c < Cols && board[r][c].player == player) {
-            count++;
+            result.count++;
+            result.direction = dir;
         } else {
             break;
         }
     }
 
-    // Check in the negative direction
-    for (int i = 1; i < 4; ++i) {
-        int r = row - dir.first * i;
-        int c = col - dir.second * i;
-        if (r >= 0 && r < Rows && c >= 0 && c < Cols && board[r][c].player == player) {
-            count++;
-        } else {
-            break;
-        }
-    }
-
-    return count;
+    return result;
 }
+
 
 bool Connect_4::isValidMove(int row, int col)
 {
@@ -97,16 +103,15 @@ bool Connect_4::isValidMove(int row, int col)
            (board[row + 1][col].player != Piece::px);
 }
 
+
 void Connect_4::paintEvent(QPaintEvent *event)
 {
-    //TWidget::paintEvent(event);
     QWidget::paintEvent(event);
 
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(Qt::NoPen);
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setPen(Qt::NoPen);
 
-    // Compute available space
     double holeW = (double)(width() - (Margin * (Cols + 1))) / Cols;
     double holeH = (double)(height() - (Margin * (Rows + 1))) / Rows;
 
@@ -114,11 +119,16 @@ void Connect_4::paintEvent(QPaintEvent *event)
     emit diameterChanged((short)m_currentDiameter);
 
     //------------------------------------------------------
-    // Build board shape with punched holes
+    // 1. BOARD BASE SHAPE
     //------------------------------------------------------
-
     QPainterPath boardPath;
-    boardPath.addRoundedRect(rect(),height()/15,height()/15);
+    qreal radius = height() / 15.0;
+    boardPath.addRoundedRect(rect(), radius, radius);
+
+    //------------------------------------------------------
+    // 2. HOLES (cut out)
+    //------------------------------------------------------
+    QVector<QRectF> holes;
 
     for (int r = 0; r < Rows; ++r) {
         for (int c = 0; c < Cols; ++c) {
@@ -126,32 +136,102 @@ void Connect_4::paintEvent(QPaintEvent *event)
             double x = Margin + c * (holeW + Margin) + (holeW - m_currentDiameter) / 2.0;
             double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
 
-            board[r][c].center = QPointF(x, y);
-            boardPath.addEllipse(QRectF(x, y, m_currentDiameter, m_currentDiameter));
-            
-            if(board[r][c].player != Piece::px){
-               if(board[r][c].piece){
-                    QRectF pieceRect(board[r][c].center, QSizeF(m_currentDiameter, m_currentDiameter));
-                    board[r][c].piece->setGeometry(pieceRect.toRect());
-                }
-            }
+            QRectF holeRect(x, y, m_currentDiameter, m_currentDiameter);
+            holes.push_back(holeRect);
 
+            board[r][c].center = QPointF(x, y);
+
+            boardPath.addEllipse(holeRect);
+
+            if(board[r][c].player != Piece::px && board[r][c].piece){
+                board[r][c].piece->setGeometry(holeRect.toRect());
+            }
         }
     }
 
     boardPath.setFillRule(Qt::OddEvenFill);
 
     //------------------------------------------------------
-    // Draw board
+    // 3. BASE GRADIENT (plastic body)
     //------------------------------------------------------
-    QLinearGradient gradient(0, 0, width() * 0.8, height());
-    gradient.setColorAt(0.0, QColor(0, 71, 171));
-    gradient.setColorAt(1.0, QColor(28, 169, 201));
-    painter.setBrush(QColor(30,30,30,180)); // board color
-    painter.drawPath(boardPath);
+    QColor boardColor(20, 90, 200); // Base board color light blue
+    QColor base      = boardColor; // base board color
+    QColor light     = base.lighter(130);   // top light
+    QColor mid       = base;
+    QColor dark      = base.darker(130);    // mid shadow
+    QColor deepDark  = base.darker(180);    // edge shadow
+
+    QLinearGradient baseGrad(0, 0, width(), height());
+    baseGrad.setColorAt(0.0, light);
+    baseGrad.setColorAt(0.4, mid);
+    baseGrad.setColorAt(1.0, deepDark);
+
+    p.fillPath(boardPath, baseGrad);
+
+    //------------------------------------------------------
+    // 4. GLOBAL LIGHT (top highlight)
+    //------------------------------------------------------
+    QLinearGradient topLight(0, 0, 0, height() * 0.5);
+    topLight.setColorAt(0.0, QColor(250,250,250,80));
+    topLight.setColorAt(1.0, QColor(250,250,250,0));
+
+    p.fillPath(boardPath, topLight);
+
+    //------------------------------------------------------
+    // 5. HOLE DEPTH (adapted to boardColor)
+    //------------------------------------------------------
+    for (const QRectF& hole : holes)
+    {
+        QPointF c = hole.center();
+        qreal r = hole.width() / 2.0;
+
+        // Inner shadow (depth)
+        QRadialGradient shadowGrad(c, r);
+        shadowGrad.setColorAt(0.6, QColor(0,0,0,0));
+        shadowGrad.setColorAt(1.0, QColor(0,0,0,140));
+
+        p.setBrush(shadowGrad);
+        p.drawEllipse(hole);
+
+        // Inner rim highlight (color-aware, not pure white)
+        QRectF inner = hole.adjusted(1,1,-1,-1);
+
+        QColor rimHighlight = boardColor.lighter(160);
+        rimHighlight.setAlpha(120);
+
+        QRadialGradient rimLight(c - QPointF(r*0.3, r*0.3), r);
+        rimLight.setColorAt(0.0, rimHighlight);
+        rimLight.setColorAt(1.0, QColor(255,255,255,0));
+
+        p.setBrush(rimLight);
+        p.drawEllipse(inner);
+
+        // Outer rim shadow (slightly tinted, not pure black)
+        QColor rimShadow = boardColor.darker(200);
+        rimShadow.setAlpha(120);
+
+        QPen rimPen(rimShadow, 2);
+        rimPen.setCosmetic(true);
+        p.setPen(rimPen);
+        p.setBrush(Qt::NoBrush);
+        p.drawEllipse(hole);
+
+        p.setPen(Qt::NoPen);
+    }
+
+    //------------------------------------------------------
+    // 6. OUTER EDGE (thickness, color-aware)
+    //------------------------------------------------------
+    QColor edgeColor = boardColor.darker(220);
+    edgeColor.setAlpha(150);
+
+    QPen edgePen(edgeColor, 3);
+    edgePen.setCosmetic(true);
+    p.setPen(edgePen);
+    p.setBrush(Qt::NoBrush);
+    p.drawRoundedRect(rect().adjusted(1,1,-1,-1), radius, radius);
 
 }
-
 
 void Connect_4::mouseMoveEvent(QMouseEvent *event)
 {
@@ -191,6 +271,7 @@ void Connect_4::printBoardState() const
         qDebug() << rowStr;
     }
 }
+
 Piece::Player Connect_4::verifyWinner()
 {
     for (int r = 0; r < Rows; ++r) {
@@ -204,6 +285,7 @@ Piece::Player Connect_4::verifyWinner()
     }
     return Piece::px; // No winner
 }
+
 void Connect_4::linkPieceToSlot(Piece* _piece,QPointF pos){
     if(!_piece) return;
     int col = pos.x() / (width() / Cols);
@@ -212,28 +294,6 @@ void Connect_4::linkPieceToSlot(Piece* _piece,QPointF pos){
     board[row][col].piece = _piece;
 }
 
-void Connect_4::updatePositions(){
-   qDebug() << "w :" << width() << " h :" << height();
-   
-   double holeW = (double)(width() - (Margin * (Cols + 1))) / Cols;
-   double holeH = (double)(height() - (Margin * (Rows + 1))) / Rows;
-   
-   for (int r = 0; r < Rows; ++r) {
-       for (int c = 0; c < Cols; ++c) {
-           
-           double x = Margin + c * (holeW + Margin) + (holeW - m_currentDiameter) / 2.0;
-           double y = Margin + r * (holeH + Margin) + (holeH - m_currentDiameter) / 2.0;
-           
-           if(board[r][c].player != Piece::px){
-               if(board[r][c].piece){
-                    qDebug() << "x :" << x << " y :" << y;
-                    QRectF pieceRect(board[r][c].center, QSizeF(m_currentDiameter, m_currentDiameter));
-                    board[r][c].piece->setGeometry(pieceRect.toRect());
-                }
-            }
-        }
-    }
-}
 
 void Connect_4::reset(){
     for (int r = 0; r < Rows; ++r) {

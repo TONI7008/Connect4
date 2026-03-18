@@ -2,6 +2,7 @@
 #define PIECE_H
 
 #include "circularwidget.h"
+#include <QGraphicsDropShadowEffect>
 
 
 class Piece : public CircularWidget
@@ -13,11 +14,15 @@ public:
     enum Player {p1,p2,px};
 
     void setPlayer(Player);
+    void setHighlighted(bool highlighted);
     Player player();
 
 
 private:
     Player m_player;
+    bool m_highlighted=false;
+
+    QGraphicsDropShadowEffect* m_shadowEffect=nullptr;
     void updateColor();
 };
 
