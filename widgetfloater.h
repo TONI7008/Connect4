@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QWidget>
 #include <QPropertyAnimation>
+#include <QSequentialAnimationGroup>
 #include <QEasingCurve>
 #include <QTimer>
 #include <QPointer>
@@ -12,17 +13,15 @@ class WidgetFloater : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(float floatOffset READ floatOffset WRITE setFloatOffset)
-    
+
 public:
     explicit WidgetFloater(QWidget *target, QObject *parent = nullptr);
     ~WidgetFloater();
 
-    // Animation control
     void startFloating();
     void stopFloating();
     void setFloatingEnabled(bool enabled);
-    
-    // Customization methods
+
     void setFloatAmount(int pixels);
     void setDuration(int milliseconds);
     void setEasingCurve(const QEasingCurve& curve);
@@ -30,16 +29,18 @@ public:
     void setPauseBetweenCycles(int milliseconds);
     void setAutoReposition(bool enabled);
     void setRepositionDelay(int milliseconds);
-    
-    // Status
-    bool isFloating() const;
-    int floatAmount() const { return m_floatAmount; }
-    int duration() const { return m_duration; }
+
+    bool  isFloating()        const;
+    int   floatAmount()       const { return m_floatAmount; }
+    int   duration()          const { return m_duration;    }
     QPoint originalPosition() const { return m_originalPosition; }
-    
-    // Manual reposition (if needed)
+
     void updateOriginalPosition();
     void setOriginalPosition(const QPoint& pos);
+
+    // Call this manually if you know the layout has settled and want to
+    // re-capture the widget's position (e.g. after a page switch animation).
+    void captureLayoutPosition();
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -57,44 +58,41 @@ private slots:
     void delayedReposition();
 
 private:
-    // Target widget
     QPointer<QWidget> m_target;
     QPointer<QWidget> m_parent;
-    
-    // Animation properties
-    QPropertyAnimation *m_floatUpAnimation;
-    QPropertyAnimation *m_floatDownAnimation;
-    QSequentialAnimationGroup *m_floatSequence;
-    QEasingCurve m_easingCurve;
-    
-    // Configuration
-    int m_floatAmount;
-    int m_duration;
-    bool m_randomDelay;
-    int m_pauseDuration;
+
+    QPropertyAnimation      *m_floatUpAnimation   = nullptr;
+    QPropertyAnimation      *m_floatDownAnimation = nullptr;
+    QSequentialAnimationGroup *m_floatSequence     = nullptr;
+    QEasingCurve             m_easingCurve;
+
+    int   m_floatAmount;
+    int   m_duration;
+    bool  m_randomDelay;
+    int   m_pauseDuration;
     QPoint m_originalPosition;
     QPoint m_lastKnownPosition;
-    float m_floatOffset;
-    
-    // Auto-reposition
-    bool m_autoReposition;
-    int m_repositionDelay;
-    QTimer *m_repositionTimer;
-    bool m_pendingReposition;
-    
-    // State
-    bool m_isFloating;
-    int m_currentCycle;
-    bool m_parentEventFilterInstalled;
-    
-    // Helper methods
+    float  m_floatOffset;
+
+    bool  m_autoReposition;
+    int   m_repositionDelay;
+    QTimer *m_repositionTimer = nullptr;
+    bool   m_pendingReposition;
+
+    bool  m_isFloating;
+    int   m_currentCycle;
+    bool  m_parentEventFilterInstalled;
+    bool  m_positionCaptured;   // ← NEW: true once we've read a valid layout pos
+
     void setupAnimations();
     void saveOriginalPosition();
     void installParentEventFilter();
-    float floatOffset() const { return m_floatOffset; }
-    void setFloatOffset(float offset);
+    void scheduleReposition();            // ← NEW: debounce helper
     void updateWidgetPosition();
-    bool isValid() const { return !m_target.isNull(); }
+
+    float floatOffset() const   { return m_floatOffset; }
+    void  setFloatOffset(float offset);
+    bool  isValid()     const   { return !m_target.isNull(); }
 };
 
 #endif // WIDGETFLOATER_H

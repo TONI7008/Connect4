@@ -30,7 +30,7 @@ struct ChildWidgetInfo {
     int margin;
     bool visible;
     QPoint originalPosition;
-    QPropertyAnimation* animation=nullptr;
+    QPropertyAnimation* animation = nullptr;
 };
 
 class DynamicFrameAssistant : public QObject
@@ -64,6 +64,7 @@ public:
 
     void setBlock(bool newBlock);
     void update();
+    bool isPopped(const QWidget*) const;
 
 signals:
     void animationFinished(QWidget* widget, bool visible);

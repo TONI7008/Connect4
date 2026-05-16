@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <QDebug>
 
+// Search center columns first — greatly improves alpha-beta pruning
+const int AIHelper::COL_ORDER[6] = {2, 3, 1, 4, 0, 5};
+
 AIHelper::AIHelper(QObject *parent)
     : QObject(parent)
 {
@@ -13,192 +16,234 @@ void AIHelper::setBoardState(const QVector<QVector<Piece::Player>>& boardState)
     m_board = boardState;
 }
 
-bool AIHelper::isValidMove(int row, int col) const
+// Gravity: find the lowest empty row in a column
+int AIHelper::dropRow(int col) const
 {
-    if (row < 0 || row >= ROWS || col < 0 || col >= COLS)
-        return false;
-
-    if (m_board[row][col] != Piece::px)
-        return false;
-
-    return (row == ROWS - 1) ||
-           (m_board[row + 1][col] != Piece::px);
+    if (col < 0 || col >= COLS) return -1;
+    for (int row = ROWS - 1; row >= 0; --row) {
+        if (m_board[row][col] == Piece::px)
+            return row;
+    }
+    return -1; // column full
 }
 
-int AIHelper::countInDirection(int row, int col, Piece::Player player, const std::pair<int, int>& direction) const
+// Score a 4-cell window from p's perspective
+int AIHelper::scoreWindow(const QVector<Piece::Player>& window, Piece::Player p) const
 {
-    if (m_board[row][col] != player)
-        return 0;
-    
-    int count = 1;
-    int r = row + direction.first;
-    int c = col + direction.second;
-    
-    // Count in positive direction
-    while (r >= 0 && r < ROWS && c >= 0 && c < COLS && m_board[r][c] == player) {
-        count++;
-        r += direction.first;
-        c += direction.second;
-    }
-    
-    // Count in negative direction
-    r = row - direction.first;
-    c = col - direction.second;
-    while (r >= 0 && r < ROWS && c >= 0 && c < COLS && m_board[r][c] == player) {
-        count++;
-        r -= direction.first;
-        c -= direction.second;
-    }
-    
-    return count;
+    Piece::Player opp = (p == Piece::p1) ? Piece::p2 : Piece::p1;
+    int pCount   = window.count(p);
+    int empCount = window.count(Piece::px);
+    int oCount   = window.count(opp);
+
+    if (pCount == 4)               return  100'000; // Win!
+    if (pCount == 3 && empCount == 1) return  50;
+    if (pCount == 2 && empCount == 2) return  10;
+    if (oCount == 3 && empCount == 1) return -80;   // Block urgently
+    if (oCount == 4)               return -100'000; // Opponent wins
+    return 0;
 }
 
-int AIHelper::minimax(int depth, bool isMaximizing, Piece::Player currentPlayer)
+// Evaluate the whole board, always from p2 (AI) perspective
+int AIHelper::evaluateBoard() const
 {
-    if (depth == 0) {
-        return evaluateBoard(currentPlayer);
-    }
-    
-    Piece::Player opponent = (currentPlayer == Piece::p1) ? Piece::p2 : Piece::p1;
-    
-    if (isMaximizing) {
-        int maxEval = -INF;
-        for (int row = 0; row < ROWS; ++row) {
-            for (int col = 0; col < COLS; ++col) {
-                if (isValidMove(row, col)) {
-                    // Simulate the move
-                    Piece::Player original = m_board[row][col];
-                    m_board[row][col] = currentPlayer;
-                    
-                    int eval = minimax(depth - 1, false, opponent);
-                    
-                    // Undo the move
-                    m_board[row][col] = original;
-                    
-                    maxEval = std::max(maxEval, eval);
-                }
-            }
-        }
-        return maxEval;
-    } else {
-        int minEval = INF;
-        for (int row = 0; row < ROWS; ++row) {
-            for (int col = 0; col < COLS; ++col) {
-                if (isValidMove(row, col)) {
-                    // Simulate the move
-                    Piece::Player original = m_board[row][col];
-                    m_board[row][col] = currentPlayer;
-                    
-                    int eval = minimax(depth - 1, true, opponent);
-                    
-                    // Undo the move
-                    m_board[row][col] = original;
-                    
-                    minEval = std::min(minEval, eval);
-                }
-            }
-        }
-        return minEval;
-    }
-}
-
-int AIHelper::evaluateBoard(Piece::Player aiPlayer) const
-{
+    Piece::Player ai  = Piece::p2;
     int score = 0;
-    Piece::Player opponent = (aiPlayer == Piece::p1) ? Piece::p2 : Piece::p1;
-    
+
+    // Center column bonus
+    int centerCol = COLS / 2;
     for (int row = 0; row < ROWS; ++row) {
-        for (int col = 0; col < COLS; ++col) {
-            if (m_board[row][col] == aiPlayer) {
-                // Center column preference
-                if (col == COLS / 2) {
-                    score += 10;
-                }
-                
-                // Lower row preference
-                if (row > 4) {
-                    score += 5;
-                }
-                
-                // Line counts with different weights based on length
-                int horizontal = countInDirection(row, col, aiPlayer, {0, 1});
-                int vertical = countInDirection(row, col, aiPlayer, {1, 0});
-                int diagDownRight = countInDirection(row, col, aiPlayer, {1, 1});
-                int diagDownLeft = countInDirection(row, col, aiPlayer, {1, -1});
-                
-                // Weight longer sequences more heavily
-                if (horizontal >= 4) score += 1000;
-                else if (horizontal == 3) score += 100;
-                else if (horizontal == 2) score += 10;
-                
-                if (vertical >= 4) score += 1000;
-                else if (vertical == 3) score += 100;
-                else if (vertical == 2) score += 10;
-                
-                if (diagDownRight >= 4) score += 1000;
-                else if (diagDownRight == 3) score += 100;
-                else if (diagDownRight == 2) score += 10;
-                
-                if (diagDownLeft >= 4) score += 1000;
-                else if (diagDownLeft == 3) score += 100;
-                else if (diagDownLeft == 2) score += 10;
-                
-            } else if (m_board[row][col] == opponent) {
-                // Penalize opponent's strong positions
-                int horizontal = countInDirection(row, col, opponent, {0, 1});
-                int vertical = countInDirection(row, col, opponent, {1, 0});
-                int diagDownRight = countInDirection(row, col, opponent, {1, 1});
-                int diagDownLeft = countInDirection(row, col, opponent, {1, -1});
-                
-                // Heavier penalties for opponent's near-wins
-                if (horizontal >= 4) score -= 1500;
-                else if (horizontal == 3) score -= 150;
-                else if (horizontal == 2) score -= 15;
-                
-                if (vertical >= 4) score -= 1500;
-                else if (vertical == 3) score -= 150;
-                else if (vertical == 2) score -= 15;
-                
-                if (diagDownRight >= 4) score -= 1500;
-                else if (diagDownRight == 3) score -= 150;
-                else if (diagDownRight == 2) score -= 15;
-                
-                if (diagDownLeft >= 4) score -= 1500;
-                else if (diagDownLeft == 3) score -= 150;
-                else if (diagDownLeft == 2) score -= 15;
-            }
+        if (m_board[row][centerCol] == ai) score += 6;
+    }
+
+    // Horizontal windows
+    for (int row = 0; row < ROWS; ++row) {
+        for (int col = 0; col <= COLS - 4; ++col) {
+            QVector<Piece::Player> window = {
+                m_board[row][col],
+                m_board[row][col+1],
+                m_board[row][col+2],
+                m_board[row][col+3]
+            };
+            score += scoreWindow(window, ai);
         }
     }
+
+    // Vertical windows
+    for (int col = 0; col < COLS; ++col) {
+        for (int row = 0; row <= ROWS - 4; ++row) {
+            QVector<Piece::Player> window = {
+                m_board[row][col],
+                m_board[row+1][col],
+                m_board[row+2][col],
+                m_board[row+3][col]
+            };
+            score += scoreWindow(window, ai);
+        }
+    }
+
+    // Diagonal down-right
+    for (int row = 0; row <= ROWS - 4; ++row) {
+        for (int col = 0; col <= COLS - 4; ++col) {
+            QVector<Piece::Player> window = {
+                m_board[row][col],
+                m_board[row+1][col+1],
+                m_board[row+2][col+2],
+                m_board[row+3][col+3]
+            };
+            score += scoreWindow(window, ai);
+        }
+    }
+
+    // Diagonal down-left
+    for (int row = 0; row <= ROWS - 4; ++row) {
+        for (int col = 3; col < COLS; ++col) {
+            QVector<Piece::Player> window = {
+                m_board[row][col],
+                m_board[row+1][col-1],
+                m_board[row+2][col-2],
+                m_board[row+3][col-3]
+            };
+            score += scoreWindow(window, ai);
+        }
+    }
+
     return score;
+}
+
+bool AIHelper::checkWinFor(Piece::Player player) const
+{
+    // Horizontal
+    for (int r = 0; r < ROWS; ++r)
+        for (int c = 0; c <= COLS - 4; ++c)
+            if (m_board[r][c]==player && m_board[r][c+1]==player &&
+                m_board[r][c+2]==player && m_board[r][c+3]==player)
+                return true;
+    // Vertical
+    for (int c = 0; c < COLS; ++c)
+        for (int r = 0; r <= ROWS - 4; ++r)
+            if (m_board[r][c]==player && m_board[r+1][c]==player &&
+                m_board[r+2][c]==player && m_board[r+3][c]==player)
+                return true;
+    // Diagonal down-right
+    for (int r = 0; r <= ROWS - 4; ++r)
+        for (int c = 0; c <= COLS - 4; ++c)
+            if (m_board[r][c]==player && m_board[r+1][c+1]==player &&
+                m_board[r+2][c+2]==player && m_board[r+3][c+3]==player)
+                return true;
+    // Diagonal down-left
+    for (int r = 0; r <= ROWS - 4; ++r)
+        for (int c = 3; c < COLS; ++c)
+            if (m_board[r][c]==player && m_board[r+1][c-1]==player &&
+                m_board[r+2][c-2]==player && m_board[r+3][c-3]==player)
+                return true;
+    return false;
+}
+
+bool AIHelper::isTerminal() const
+{
+    if (checkWinFor(Piece::p1) || checkWinFor(Piece::p2)) return true;
+    // Draw: no valid columns left
+    for (int col = 0; col < COLS; ++col)
+        if (dropRow(col) != -1) return false;
+    return true;
+}
+
+// Alpha-beta minimax — maximizing == AI (p2) moving
+int AIHelper::minimax(int depth, int alpha, int beta, bool maximizing)
+{
+    // Terminal / depth check
+    if (checkWinFor(Piece::p2)) return  INF + depth; // AI wins — prefer faster wins
+    if (checkWinFor(Piece::p1)) return -INF - depth; // Human wins
+    if (depth == 0 || isTerminal()) return evaluateBoard();
+
+    Piece::Player mover = maximizing ? Piece::p2 : Piece::p1;
+
+    if (maximizing) {
+        int best = -INF;
+        for (int ci = 0; ci < COLS; ++ci) {
+            int col = COL_ORDER[ci];
+            int row = dropRow(col);
+            if (row == -1) continue;
+
+            m_board[row][col] = mover;
+            int val = minimax(depth - 1, alpha, beta, false);
+            m_board[row][col] = Piece::px;
+
+            best  = std::max(best, val);
+            alpha = std::max(alpha, best);
+            if (alpha >= beta) break; // Beta cut-off
+        }
+        return best;
+    } else {
+        int best = INF;
+        for (int ci = 0; ci < COLS; ++ci) {
+            int col = COL_ORDER[ci];
+            int row = dropRow(col);
+            if (row == -1) continue;
+
+            m_board[row][col] = mover;
+            int val = minimax(depth - 1, alpha, beta, true);
+            m_board[row][col] = Piece::px;
+
+            best = std::min(best, val);
+            beta = std::min(beta, best);
+            if (alpha >= beta) break; // Alpha cut-off
+        }
+        return best;
+    }
 }
 
 void AIHelper::findBestMove(int difficulty, int &bestRow, int &bestCol)
 {
     bestRow = -1;
     bestCol = -1;
-    int bestEval = -INF;
-    Piece::Player aiPlayer = Piece::p2; // AI always plays as p2
-    
-    short count = 0;
-    for (int row = 0; row < ROWS; ++row) {
-        for (int col = 0; col < COLS; ++col) {
-            if (isValidMove(row, col)) {
-                count++;
-                // Simulate the move
-                Piece::Player original = m_board[row][col];
-                m_board[row][col] = aiPlayer;
-                
-                int eval = minimax(difficulty, false, Piece::p1); // Opponent is p1
-                
-                // Undo the move
-                m_board[row][col] = original;
-                
-                if (eval > bestEval) {
-                    bestEval = eval;
-                    bestRow = row;
-                    bestCol = col;
-                }
-            }
+    int bestEval = -INF - 1;
+
+    // Immediate win / block check before full minimax
+    // 1. Can AI win immediately?
+    for (int ci = 0; ci < COLS; ++ci) {
+        int col = COL_ORDER[ci];
+        int row = dropRow(col);
+        if (row == -1) continue;
+        m_board[row][col] = Piece::p2;
+        if (checkWinFor(Piece::p2)) {
+            m_board[row][col] = Piece::px;
+            bestRow = row; bestCol = col;
+            emit moveFound(bestRow, bestCol);
+            return;
+        }
+        m_board[row][col] = Piece::px;
+    }
+
+    // 2. Must we block player immediately?
+    for (int ci = 0; ci < COLS; ++ci) {
+        int col = COL_ORDER[ci];
+        int row = dropRow(col);
+        if (row == -1) continue;
+        m_board[row][col] = Piece::p1;
+        if (checkWinFor(Piece::p1)) {
+            m_board[row][col] = Piece::px;
+            bestRow = row; bestCol = col;
+            emit moveFound(bestRow, bestCol);
+            return;
+        }
+        m_board[row][col] = Piece::px;
+    }
+
+    // 3. Full alpha-beta search
+    for (int ci = 0; ci < COLS; ++ci) {
+        int col = COL_ORDER[ci];
+        int row = dropRow(col);
+        if (row == -1) continue;
+
+        m_board[row][col] = Piece::p2;
+        int eval = minimax(difficulty - 1, -INF, INF, false);
+        m_board[row][col] = Piece::px;
+
+        if (eval > bestEval) {
+            bestEval = eval;
+            bestRow  = row;
+            bestCol  = col;
         }
     }
 
@@ -206,27 +251,5 @@ void AIHelper::findBestMove(int difficulty, int &bestRow, int &bestCol)
         emit moveFound(bestRow, bestCol);
     } else {
         emit error("No valid moves found");
-    }
-}
-
-void AIHelper::printBoardState() const
-{
-    qDebug() << "Current Board State:";
-    for (int r = 0; r < ROWS; ++r) {
-        QString rowStr;
-        for (int c = 0; c < COLS; ++c) {
-            switch (m_board[r][c]) {
-                case Piece::p1:
-                    rowStr += "-P1-";
-                    break;
-                case Piece::p2:
-                    rowStr += "-P2-";
-                    break;
-                case Piece::px:
-                    rowStr += "-Em-";
-                    break;
-            }
-        }
-        qDebug() << rowStr;
     }
 }
