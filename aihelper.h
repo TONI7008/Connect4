@@ -13,6 +13,7 @@ public:
 
     void setBoardState(const QVector<QVector<Piece::Player>>& boardState);
     void findBestMove(int difficulty, int &bestRow, int &bestCol);
+    bool hasAnyMove() const;
 
 signals:
     void moveFound(int row, int col);

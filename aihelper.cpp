@@ -1,5 +1,6 @@
 #include "aihelper.h"
 #include <algorithm>
+#include <climits>
 #include <QDebug>
 
 // Search center columns first — greatly improves alpha-beta pruning
@@ -16,121 +17,41 @@ void AIHelper::setBoardState(const QVector<QVector<Piece::Player>>& boardState)
     m_board = boardState;
 }
 
-// Gravity: find the lowest empty row in a column
+// ── Gravity helper ────────────────────────────────────────────────────────────
 int AIHelper::dropRow(int col) const
 {
     if (col < 0 || col >= COLS) return -1;
-    for (int row = ROWS - 1; row >= 0; --row) {
+    for (int row = ROWS - 1; row >= 0; --row)
         if (m_board[row][col] == Piece::px)
             return row;
-    }
-    return -1; // column full
+    return -1;
 }
 
-// Score a 4-cell window from p's perspective
-int AIHelper::scoreWindow(const QVector<Piece::Player>& window, Piece::Player p) const
+bool AIHelper::hasAnyMove() const
 {
-    Piece::Player opp = (p == Piece::p1) ? Piece::p2 : Piece::p1;
-    int pCount   = window.count(p);
-    int empCount = window.count(Piece::px);
-    int oCount   = window.count(opp);
-
-    if (pCount == 4)               return  100'000; // Win!
-    if (pCount == 3 && empCount == 1) return  50;
-    if (pCount == 2 && empCount == 2) return  10;
-    if (oCount == 3 && empCount == 1) return -80;   // Block urgently
-    if (oCount == 4)               return -100'000; // Opponent wins
-    return 0;
+    for (int col = 0; col < COLS; ++col)
+        if (dropRow(col) != -1) return true;
+    return false;
 }
 
-// Evaluate the whole board, always from p2 (AI) perspective
-int AIHelper::evaluateBoard() const
-{
-    Piece::Player ai  = Piece::p2;
-    int score = 0;
-
-    // Center column bonus
-    int centerCol = COLS / 2;
-    for (int row = 0; row < ROWS; ++row) {
-        if (m_board[row][centerCol] == ai) score += 6;
-    }
-
-    // Horizontal windows
-    for (int row = 0; row < ROWS; ++row) {
-        for (int col = 0; col <= COLS - 4; ++col) {
-            QVector<Piece::Player> window = {
-                m_board[row][col],
-                m_board[row][col+1],
-                m_board[row][col+2],
-                m_board[row][col+3]
-            };
-            score += scoreWindow(window, ai);
-        }
-    }
-
-    // Vertical windows
-    for (int col = 0; col < COLS; ++col) {
-        for (int row = 0; row <= ROWS - 4; ++row) {
-            QVector<Piece::Player> window = {
-                m_board[row][col],
-                m_board[row+1][col],
-                m_board[row+2][col],
-                m_board[row+3][col]
-            };
-            score += scoreWindow(window, ai);
-        }
-    }
-
-    // Diagonal down-right
-    for (int row = 0; row <= ROWS - 4; ++row) {
-        for (int col = 0; col <= COLS - 4; ++col) {
-            QVector<Piece::Player> window = {
-                m_board[row][col],
-                m_board[row+1][col+1],
-                m_board[row+2][col+2],
-                m_board[row+3][col+3]
-            };
-            score += scoreWindow(window, ai);
-        }
-    }
-
-    // Diagonal down-left
-    for (int row = 0; row <= ROWS - 4; ++row) {
-        for (int col = 3; col < COLS; ++col) {
-            QVector<Piece::Player> window = {
-                m_board[row][col],
-                m_board[row+1][col-1],
-                m_board[row+2][col-2],
-                m_board[row+3][col-3]
-            };
-            score += scoreWindow(window, ai);
-        }
-    }
-
-    return score;
-}
-
+// ── Win detection ─────────────────────────────────────────────────────────────
 bool AIHelper::checkWinFor(Piece::Player player) const
 {
-    // Horizontal
     for (int r = 0; r < ROWS; ++r)
         for (int c = 0; c <= COLS - 4; ++c)
             if (m_board[r][c]==player && m_board[r][c+1]==player &&
                 m_board[r][c+2]==player && m_board[r][c+3]==player)
                 return true;
-    // Vertical
     for (int c = 0; c < COLS; ++c)
         for (int r = 0; r <= ROWS - 4; ++r)
             if (m_board[r][c]==player && m_board[r+1][c]==player &&
                 m_board[r+2][c]==player && m_board[r+3][c]==player)
                 return true;
-    // Diagonal down-right
     for (int r = 0; r <= ROWS - 4; ++r)
         for (int c = 0; c <= COLS - 4; ++c)
             if (m_board[r][c]==player && m_board[r+1][c+1]==player &&
                 m_board[r+2][c+2]==player && m_board[r+3][c+3]==player)
                 return true;
-    // Diagonal down-left
     for (int r = 0; r <= ROWS - 4; ++r)
         for (int c = 3; c < COLS; ++c)
             if (m_board[r][c]==player && m_board[r+1][c-1]==player &&
@@ -141,96 +62,143 @@ bool AIHelper::checkWinFor(Piece::Player player) const
 
 bool AIHelper::isTerminal() const
 {
-    if (checkWinFor(Piece::p1) || checkWinFor(Piece::p2)) return true;
-    // Draw: no valid columns left
-    for (int col = 0; col < COLS; ++col)
-        if (dropRow(col) != -1) return false;
-    return true;
+    return checkWinFor(Piece::p1) || checkWinFor(Piece::p2) || !hasAnyMove();
 }
 
-// Alpha-beta minimax — maximizing == AI (p2) moving
+// ── Board evaluation (always p2/AI perspective) ───────────────────────────────
+int AIHelper::scoreWindow(const QVector<Piece::Player>& window, Piece::Player p) const
+{
+    Piece::Player opp = (p == Piece::p1) ? Piece::p2 : Piece::p1;
+    int pCount   = window.count(p);
+    int empCount = window.count(Piece::px);
+    int oCount   = window.count(opp);
+
+    if (pCount == 4)                  return  100'000;
+    if (pCount == 3 && empCount == 1) return  50;
+    if (pCount == 2 && empCount == 2) return  10;
+    if (oCount == 3 && empCount == 1) return -80;
+    if (oCount == 4)                  return -100'000;
+    return 0;
+}
+
+int AIHelper::evaluateBoard() const
+{
+    Piece::Player ai = Piece::p2;
+    int score = 0;
+
+    for (int row = 0; row < ROWS; ++row)
+        if (m_board[row][COLS / 2] == ai) score += 6;
+
+    for (int r = 0; r < ROWS; ++r)
+        for (int c = 0; c <= COLS - 4; ++c)
+            score += scoreWindow({m_board[r][c],   m_board[r][c+1],
+                                  m_board[r][c+2], m_board[r][c+3]}, ai);
+    for (int c = 0; c < COLS; ++c)
+        for (int r = 0; r <= ROWS - 4; ++r)
+            score += scoreWindow({m_board[r][c],   m_board[r+1][c],
+                                  m_board[r+2][c], m_board[r+3][c]}, ai);
+    for (int r = 0; r <= ROWS - 4; ++r)
+        for (int c = 0; c <= COLS - 4; ++c)
+            score += scoreWindow({m_board[r][c],     m_board[r+1][c+1],
+                                  m_board[r+2][c+2], m_board[r+3][c+3]}, ai);
+    for (int r = 0; r <= ROWS - 4; ++r)
+        for (int c = 3; c < COLS; ++c)
+            score += scoreWindow({m_board[r][c],     m_board[r+1][c-1],
+                                  m_board[r+2][c-2], m_board[r+3][c-3]}, ai);
+    return score;
+}
+
+// ── Alpha-beta minimax ────────────────────────────────────────────────────────
 int AIHelper::minimax(int depth, int alpha, int beta, bool maximizing)
 {
-    // Terminal / depth check
-    if (checkWinFor(Piece::p2)) return  INF + depth; // AI wins — prefer faster wins
-    if (checkWinFor(Piece::p1)) return -INF - depth; // Human wins
-    if (depth == 0 || isTerminal()) return evaluateBoard();
+    // Always check terminal BEFORE generating children.
+    if (checkWinFor(Piece::p2)) return  INF + depth; // AI wins — reward faster wins
+    if (checkWinFor(Piece::p1)) return -INF - depth; // Human wins — punish
+    if (!hasAnyMove())          return 0;             // Draw
+    if (depth == 0)             return evaluateBoard();
 
     Piece::Player mover = maximizing ? Piece::p2 : Piece::p1;
 
     if (maximizing) {
-        int best = -INF;
+        int best = INT_MIN;  // ← INT_MIN so even a losing move beats this sentinel
         for (int ci = 0; ci < COLS; ++ci) {
             int col = COL_ORDER[ci];
             int row = dropRow(col);
             if (row == -1) continue;
 
             m_board[row][col] = mover;
-            int val = minimax(depth - 1, alpha, beta, false);
+            best  = std::max(best, minimax(depth - 1, alpha, beta, false));
             m_board[row][col] = Piece::px;
 
-            best  = std::max(best, val);
             alpha = std::max(alpha, best);
-            if (alpha >= beta) break; // Beta cut-off
+            if (alpha >= beta) break;
         }
         return best;
     } else {
-        int best = INF;
+        int best = INT_MAX;  // ← INT_MAX symmetric sentinel
         for (int ci = 0; ci < COLS; ++ci) {
             int col = COL_ORDER[ci];
             int row = dropRow(col);
             if (row == -1) continue;
 
             m_board[row][col] = mover;
-            int val = minimax(depth - 1, alpha, beta, true);
+            best = std::min(best, minimax(depth - 1, alpha, beta, true));
             m_board[row][col] = Piece::px;
 
-            best = std::min(best, val);
             beta = std::min(beta, best);
-            if (alpha >= beta) break; // Alpha cut-off
+            if (alpha >= beta) break;
         }
         return best;
     }
 }
 
+// ── Entry point ───────────────────────────────────────────────────────────────
 void AIHelper::findBestMove(int difficulty, int &bestRow, int &bestCol)
 {
     bestRow = -1;
     bestCol = -1;
-    int bestEval = -INF - 1;
 
-    // Immediate win / block check before full minimax
-    // 1. Can AI win immediately?
+    // Guard: game already decided
+    if (checkWinFor(Piece::p1) || checkWinFor(Piece::p2)) {
+        emit error("Game already decided — no move needed");
+        return;
+    }
+
+    // Guard: board full
+    if (!hasAnyMove()) {
+        emit error("Board is full — draw");
+        return;
+    }
+
+    // ── 1. Win in one? ────────────────────────────────────────────────────
     for (int ci = 0; ci < COLS; ++ci) {
         int col = COL_ORDER[ci];
         int row = dropRow(col);
         if (row == -1) continue;
         m_board[row][col] = Piece::p2;
-        if (checkWinFor(Piece::p2)) {
-            m_board[row][col] = Piece::px;
-            bestRow = row; bestCol = col;
-            emit moveFound(bestRow, bestCol);
-            return;
-        }
+        bool win = checkWinFor(Piece::p2);
         m_board[row][col] = Piece::px;
+        if (win) { emit moveFound(row, col); return; }
     }
 
-    // 2. Must we block player immediately?
+    // ── 2. Block human win in one? ────────────────────────────────────────
     for (int ci = 0; ci < COLS; ++ci) {
         int col = COL_ORDER[ci];
         int row = dropRow(col);
         if (row == -1) continue;
         m_board[row][col] = Piece::p1;
-        if (checkWinFor(Piece::p1)) {
-            m_board[row][col] = Piece::px;
-            bestRow = row; bestCol = col;
-            emit moveFound(bestRow, bestCol);
-            return;
-        }
+        bool win = checkWinFor(Piece::p1);
         m_board[row][col] = Piece::px;
+        if (win) { emit moveFound(row, col); return; }
     }
 
-    // 3. Full alpha-beta search
+    // ── 3. Full alpha-beta search ─────────────────────────────────────────
+    // THE FIX: sentinel must be lower than any value minimax can return.
+    // minimax returns as low as  -INF - depth  (e.g. -1'000'008 at depth 8).
+    // Using INT_MIN guarantees any real score beats the sentinel, so bestRow
+    // is always updated on the first valid move — even in a totally lost position.
+    int bestEval = INT_MIN;
+
     for (int ci = 0; ci < COLS; ++ci) {
         int col = COL_ORDER[ci];
         int row = dropRow(col);
@@ -247,9 +215,19 @@ void AIHelper::findBestMove(int difficulty, int &bestRow, int &bestCol)
         }
     }
 
-    if (bestRow != -1 && bestCol != -1) {
-        emit moveFound(bestRow, bestCol);
-    } else {
-        emit error("No valid moves found");
+    // This should never trigger now — bestRow is set on the very first
+    // valid column since INT_MIN < any minimax return value.
+    if (bestRow == -1) {
+        qWarning() << "AIHelper: INT_MIN sentinel failed — using first valid col";
+        for (int ci = 0; ci < COLS; ++ci) {
+            int col = COL_ORDER[ci];
+            int row = dropRow(col);
+            if (row != -1) { bestRow = row; bestCol = col; break; }
+        }
     }
+
+    if (bestRow != -1)
+        emit moveFound(bestRow, bestCol);
+    else
+        emit error("No valid moves found (should not happen)");
 }
