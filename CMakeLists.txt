@@ -10,8 +10,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # ── Qt modules ────────────────────────────────────────────────────────────────
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Network Concurrent Gui)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Concurrent Gui)
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 set(PROJECT_SOURCES
@@ -31,6 +31,7 @@ set(PROJECT_SOURCES
     tstackedwidget.cpp  tstackedwidget.h
     widgetfloater.cpp   widgetfloater.h
     winneroverlay.cpp   winneroverlay.h
+    bwidget.cpp         bwidget.h
 
     # Game engine (main window)
     gameengine.cpp      gameengine.h
@@ -58,6 +59,8 @@ endif()
 target_link_libraries(connect4 PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    Qt${QT_VERSION_MAJOR}::Gui
 )
 
 target_include_directories(connect4 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

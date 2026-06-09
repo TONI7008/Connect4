@@ -15,10 +15,19 @@ GameEngine::GameEngine(QWidget *parent)
 
     // ── Frame styling ────────────────────────────────────────────────────────
     ui->c4Widget->setBorderRadius(15);
-    ui->bottomFrame->setBorderRadius(25);
-    ui->bottomFrame->setCornerStyle(TFrame::CornerStyle::TopOnly);
-    ui->topFrame->setBorderRadius(25);
-    ui->topFrame->setCornerStyle(TFrame::CornerStyle::BottomOnly);
+    ui->bottomWidget->setBorderRadius(25);
+    ui->bottomWidget->setCornerStyle(bWidget::CornerStyle::Default);
+    ui->bottomWidget->setTheme(bWidget::Theme::Light);
+    ui->bottomWidget->setBlurMode(bWidget::BlurMode::Gaussian);
+    ui->bottomWidget->setBlurRadius(150);
+    ui->bottomWidget->setTranslucency(0.7);
+    ui->topWidget->setTheme(bWidget::Theme::Light);
+    ui->topWidget->setBlurMode(bWidget::BlurMode::Gaussian);
+    ui->topWidget->setBlurRadius(150);
+    ui->topWidget->setTranslucency(0.7);
+
+    ui->topWidget->setBorderRadius(25);
+    ui->topWidget->setCornerStyle(bWidget::CornerStyle::Default);
     ui->aiButton->setCheckable(true);
 
     // ── Player indicator circles ─────────────────────────────────────────────
