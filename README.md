@@ -22,15 +22,70 @@ A polished Qt/C++ Connect 4 game with an alpha-beta AI opponent, animated UI, an
 
 ---
 
+## Project structure
+
+```
+Connect4/
+├── CMakeLists.txt
+├── src/            # All C++ source and header files
+│   ├── main.cpp
+│   ├── gameengine.cpp / .h
+│   ├── connect_4.cpp / .h
+│   ├── ai.cpp / .h
+│   ├── aihelper.cpp / .h
+│   ├── piece.cpp / .h
+│   └── ...         # UI widget files
+├── form/           # Qt Designer UI files
+│   └── gameengine.ui
+└── Images/
+    └── screenshot.png
+```
+
+---
+
+## Dependencies & installation
+
+### Debian / Ubuntu (and derivatives)
+
+```bash
+sudo apt update
+sudo apt install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    qt6-base-dev \
+    qt6-tools-dev \
+    qt6-tools-dev-tools \
+    libqt6network6 \
+    libqt6concurrent6
+```
+
+> **Qt 5 fallback** — if Qt 6 is not available on your distro:
+> ```bash
+> sudo apt install -y qtbase5-dev qttools5-dev
+> ```
+
+### Windows
+
+1. Download and run the [Qt Online Installer](https://www.qt.io/download-qt-installer).
+2. Select **Qt 6.x → MSVC 2019 64-bit** (or MinGW 64-bit).
+3. Also install **CMake** (bundled in the Qt installer, or from [cmake.org](https://cmake.org/download/)).
+4. Open **Qt Creator** or a Developer Command Prompt and follow the build steps below.
+
+> **MinGW alternative** — if you prefer not to install MSVC, choose the MinGW kit in the Qt installer and ensure `mingw64/bin` is on your `PATH`.
+
+### macOS
+
+```bash
+# Install Homebrew if needed: https://brew.sh
+brew install qt cmake ninja
+# Make Qt findable by CMake
+export PATH="$(brew --prefix qt)/bin:$PATH"
+```
+
+---
+
 ## Building
-
-### Requirements
-
-- Qt 6.x **or** Qt 5.15+ (both supported)
-- CMake ≥ 3.16
-- A C++17 compiler (GCC 9+, Clang 10+, MSVC 2019+)
-
-### Steps
 
 ```bash
 git clone https://github.com/YOUR_GITHUB_USER/connect4.git
@@ -44,6 +99,12 @@ Run:
 ./build/connect4          # Linux / macOS
 build\connect4.exe        # Windows
 ```
+
+### Qt Creator (all platforms)
+
+1. Open **CMakeLists.txt** in Qt Creator.
+2. Configure the kit (Qt 6 or Qt 5.15+).
+3. Click **Build** → **Run**.
 
 ---
 

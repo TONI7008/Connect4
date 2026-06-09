@@ -6,6 +6,8 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
+set(CMAKE_AUTOUIC_SEARCH_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/form)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -15,30 +17,30 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network Concurren
 
 # ── Sources ───────────────────────────────────────────────────────────────────
 set(PROJECT_SOURCES
-    main.cpp
+    src/main.cpp
 
     # Game logic
-    connect_4.cpp       connect_4.h
-    piece.cpp           piece.h
-    ai.cpp              ai.h
-    aihelper.cpp        aihelper.h
+    src/connect_4.cpp       src/connect_4.h
+    src/piece.cpp           src/piece.h
+    src/ai.cpp              src/ai.h
+    src/aihelper.cpp        src/aihelper.h
 
     # UI widgets
-    circularwidget.cpp  circularwidget.h
-    twidget.cpp         twidget.h
-    tframe.cpp          tframe.h
-    togglebutton.cpp    togglebutton.h
-    tstackedwidget.cpp  tstackedwidget.h
-    widgetfloater.cpp   widgetfloater.h
-    winneroverlay.cpp   winneroverlay.h
-    bwidget.cpp         bwidget.h
+    src/circularwidget.cpp  src/circularwidget.h
+    src/twidget.cpp         src/twidget.h
+    src/tframe.cpp          src/tframe.h
+    src/togglebutton.cpp    src/togglebutton.h
+    src/tstackedwidget.cpp  src/tstackedwidget.h
+    src/widgetfloater.cpp   src/widgetfloater.h
+    src/winneroverlay.cpp   src/winneroverlay.h
+    src/bwidget.cpp         src/bwidget.h
 
     # Game engine (main window)
-    gameengine.cpp      gameengine.h
-    gameengine.ui
+    src/gameengine.cpp      src/gameengine.h
+    form/gameengine.ui
 
     # Auto-updater
-    appupdater.cpp      appupdater.h
+    src/appupdater.cpp      src/appupdater.h
 )
 
 # ── Executable ────────────────────────────────────────────────────────────────
@@ -63,7 +65,10 @@ target_link_libraries(connect4 PRIVATE
     Qt${QT_VERSION_MAJOR}::Gui
 )
 
-target_include_directories(connect4 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(connect4 PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # ── Platform-specific properties ──────────────────────────────────────────────
 
